@@ -3,15 +3,14 @@ from enum import StrEnum
 from pathlib import Path
 
 import numpy as np
+from PySide6.QtCore import QPoint, QPointF, Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPainterPath, QPalette, QPen
+from PySide6.QtWidgets import QWidget
 from skimage.draw import polygon as draw_polygon
 from skimage.measure import find_contours
-from PySide6.QtCore import QPoint, QPointF, Signal
-from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPainterPath, QPen, Qt
-from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QPalette
 
 CLOSE_THRESHOLD = 30
-MIN_POINT_DISTANCE = 2
+MIN_POINT_DISTANCE = 1
 COLORS = [
     QColor(255, 0, 0),
     QColor(0, 255, 0),
@@ -35,24 +34,25 @@ class Canvas(QWidget):
         self.image = None
         self.image_path = None
         self.zoom = 1.0
-        self.offset = QPoint(0, 0)
+        self.offset = QPointF(0, 0)
         self.drawing = False
-        self.current_points: list[QPoint] = []
-        self.objects: list[list[QPoint]] = []
+
+        self.current_points: list[QPointF] = []
+        self.objects: list[list[QPointF]] = []
+
         self.pan_start = QPoint(0, 0)
         self.tool: Tool = Tool.HAND
-        # cache for scaled image
         self.scaled_image_cache = None
         self.cached_zoom = 1.0
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
 
-    def load_image(self, file_path, objects: list[list[QPoint]] | None = None):
+    def load_image(self, file_path, objects: list[list[QPointF]] | None = None):
         self.image_path = file_path
         self.image = QImage(file_path)
         self.zoom = 1.0
-        self.offset = QPoint(0, 0)
+        self.offset = QPointF(0, 0)
         self.scaled_image_cache = self.image.copy()
         self.cached_zoom = self.zoom
 
@@ -64,32 +64,23 @@ class Canvas(QWidget):
         self.fit_to_window()
         self.update()
 
-    def _load_objects_from_npy(self, file_path: str) -> list[list[QPoint]] | None:
-        """Load objects from .npy file if it exists.
-
-        Parameters
-        ----------
-        file_path : str
-            Path to the image file.
-
-        Returns
-        -------
-        list[list[QPoint]] | None
-            List of polygons loaded from .npy file, or None if file doesn't exist.
-        """
+    def _load_objects_from_npy(self, file_path: str) -> list[list[QPointF]] | None:
         from pathlib import Path
 
         import numpy as np
+        from scipy.interpolate import splev, splprep
 
         npy_path = Path(file_path).with_suffix(".npy")
         if not npy_path.exists():
             return None
 
         try:
-            data = np.load(npy_path, allow_pickle=True)
-            if isinstance(data, np.ndarray) and data.dtype == object:
-                data = data.item()
-            labels = data["labels"] if isinstance(data, dict) else data
+            labels = np.load(npy_path, allow_pickle=True)
+            if isinstance(labels, np.ndarray) and labels.dtype == object:
+                labels = labels.item()
+            if isinstance(labels, dict):
+                labels = labels.get("labels", labels)
+
             objects = []
 
             for label_num in np.unique(labels):
@@ -100,10 +91,27 @@ class Canvas(QWidget):
                 contours = find_contours(mask, 0.5)
 
                 if contours:
-                    contour = contours[0]
-                    qpoints = [QPoint(int(y), int(x)) for x, y in contour]
+                    contour = max(contours, key=len)
+
+                    y, x = contour[:, 0], contour[:, 1]  # ty:ignore[not-subscriptable]
+
+                    if len(x) > 4:
+                        if not np.allclose([x[0], y[0]], [x[-1], y[-1]]):
+                            x = np.append(x, x[0])
+                            y = np.append(y, y[0])
+
+                        tck, u = splprep([x, y], s=3.0, per=True)
+
+                        u_new = np.linspace(u.min(), u.max(), len(x))
+                        x_new, y_new = splev(u_new, tck)
+
+                        qpoints = [QPointF(nx, ny) for nx, ny in zip(x_new, y_new)]
+                    else:
+                        qpoints = [QPointF(nx, ny) for nx, ny in zip(x, y)]
+
                     if len(qpoints) >= 3:
                         objects.append(qpoints)
+
             return objects if objects else None
         except Exception as e:
             print(f"Error loading objects from {npy_path}: {e}")
@@ -128,16 +136,18 @@ class Canvas(QWidget):
         if not self.image:
             return
 
-        img_width = int(self.image.width() * self.zoom)
-        img_height = int(self.image.height() * self.zoom)
+        img_width = self.image.width() * self.zoom
+        img_height = self.image.height() * self.zoom
 
-        x = (self.width() - img_width) // 2
-        y = (self.height() - img_height) // 2
+        x = (self.width() - img_width) / 2.0
+        y = (self.height() - img_height) / 2.0
 
-        self.offset = QPoint(x, y)
+        self.offset = QPointF(x, y)
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.fillRect(self.rect(), self.palette().color(QPalette.ColorRole.Window))
 
         if not self.image:
@@ -158,23 +168,21 @@ class Canvas(QWidget):
         if not self.scaled_image_cache:
             return
 
-        painter.drawImage(self.offset.x(), self.offset.y(), self.scaled_image_cache)
+        painter.drawImage(
+            int(self.offset.x()), int(self.offset.y()), self.scaled_image_cache
+        )
 
         for i, obj in enumerate(self.objects):
             base_color = COLORS[i % len(COLORS)]
-
             painter.setPen(QPen(base_color, 2, Qt.PenStyle.SolidLine))
-
             fill_color = QColor(base_color)
             fill_color.setAlpha(100)
             painter.setBrush(QBrush(fill_color))
-
             self._draw_polygon(painter, obj, closed=True)
 
         if self.current_points:
             color = COLORS[len(self.objects) % len(COLORS)]
             painter.setPen(QPen(color, 2, Qt.PenStyle.SolidLine))
-
             self._draw_polygon(painter, self.current_points, closed=False)
 
     def _draw_polygon(self, painter, points, closed=True):
@@ -182,28 +190,24 @@ class Canvas(QWidget):
             return
 
         screen_points = [self.screen_coords(p) for p in points]
+        path = self._create_path(screen_points, closed=closed)
 
-        if closed and len(screen_points) >= 3:
-            path = self._create_path(screen_points, closed=True)
-            painter.drawPath(path)
-        else:
-            path = self._create_path(screen_points, closed=False)
+        if not closed:
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawPath(path)
+
+        painter.drawPath(path)
 
     def _create_path(self, points, closed=False):
         path = QPainterPath()
         if len(points) < 2:
             return path
 
-        path.moveTo(QPointF(points[0].x(), points[0].y()))
-
+        path.moveTo(points[0])
         for p in points[1:]:
-            path.lineTo(QPointF(p.x(), p.y()))
+            path.lineTo(p)
 
         if closed:
             path.closeSubpath()
-
         return path
 
     def _polygon_contains(self, polygon, point):
@@ -212,9 +216,21 @@ class Canvas(QWidget):
         return path.contains(QPointF(point.x(), point.y()))
 
     def screen_coords(self, image_point):
-        x = int(image_point.x() * self.zoom + self.offset.x())
-        y = int(image_point.y() * self.zoom + self.offset.y())
-        return QPoint(x, y)
+        x = image_point.x() * self.zoom + self.offset.x()
+        y = image_point.y() * self.zoom + self.offset.y()
+        return QPointF(x, y)
+
+    def image_coords(self, screen_point):
+        if not self.image:
+            return QPointF(0, 0)
+
+        x = (screen_point.x() - self.offset.x()) / self.zoom
+        y = (screen_point.y() - self.offset.y()) / self.zoom
+
+        return QPointF(
+            max(0.0, min(x, float(self.image.width() - 1))),
+            max(0.0, min(y, float(self.image.height() - 1))),
+        )
 
     def wheelEvent(self, event):
         if not self.image:
@@ -234,8 +250,8 @@ class Canvas(QWidget):
 
         self.zoom = max(0.1, min(self.zoom, 10.0))
 
-        self.offset.setX(int(mouse_screen.x() - (mouse_image.x() * self.zoom)))
-        self.offset.setY(int(mouse_screen.y() - (mouse_image.y() * self.zoom)))
+        self.offset.setX(mouse_screen.x() - (mouse_image.x() * self.zoom))
+        self.offset.setY(mouse_screen.y() - (mouse_image.y() * self.zoom))
 
         self.update()
 
@@ -269,7 +285,7 @@ class Canvas(QWidget):
         if event.buttons() & Qt.MouseButton.LeftButton:
             match self.tool:
                 case Tool.HAND:
-                    delta = event.pos() - self.pan_start
+                    delta = QPointF(event.pos() - self.pan_start)
                     self.offset += delta
                     self.pan_start = event.pos()
                     self.update()
@@ -308,18 +324,6 @@ class Canvas(QWidget):
 
             self.update()
 
-    def image_coords(self, screen_point):
-        if not self.image:
-            return QPoint(0, 0)
-
-        x = int((screen_point.x() - self.offset.x()) / self.zoom)
-        y = int((screen_point.y() - self.offset.y()) / self.zoom)
-
-        return QPoint(
-            max(0, min(x, self.image.width() - 1)),
-            max(0, min(y, self.image.height() - 1)),
-        )
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.image:
@@ -348,5 +352,6 @@ class Canvas(QWidget):
                 labels[rr, cc] = label_num
 
         save_path = Path(self.image_path).with_suffix(".npy")
-        data = {"labels": labels}
-        np.save(save_path, np.array(data, dtype=object), allow_pickle=True)
+
+        np.save(save_path, labels)
+        print(f"Mask saved pure to {save_path}")
