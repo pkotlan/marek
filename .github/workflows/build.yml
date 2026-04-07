@@ -30,13 +30,16 @@ jobs:
         run: uv pip install pyinstaller
 
       - name: Build with PyInstaller
-        run: uv run pyinstaller --onedir --windowed --name MAReK --collect-all assets src/main.py
+        run: uv run pyinstaller --onedir --windowed --name MAReK --add-data "assets:assets" src/main.py
+
+      - name: Create Linux Tarball
+        run: tar -czvf MAReK-Linux-Setup.tar.gz -C dist MAReK/
 
       - name: Upload Linux Build
         uses: actions/upload-artifact@v4
         with:
-          name: MAReK-Linux
-          path: dist/MAReK/
+          name: MAReK-Linux-Archive
+          path: MAReK-Linux-Setup.tar.gz
           if-no-files-found: error
 
   build-windows:
@@ -61,7 +64,7 @@ jobs:
         run: uv pip install pyinstaller
 
       - name: Build with PyInstaller
-        run: uv run pyinstaller --onedir --windowed --name MAReK --collect-all assets src/main.py
+        run: uv run pyinstaller --onedir --windowed --name MAReK --add-data "assets;assets" src/main.py
 
       - name: Install NSIS
         uses: repolevedavaj/install-nsis@v1.1.0
@@ -94,6 +97,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: artifacts/MAReK-Windows-Installer/MAReK-Windows-Setup.exe
+          files: |
+            artifacts/MAReK-Windows-Installer/MAReK-Windows-Setup.exe
+            artifacts/MAReK-Linux-Archive/MAReK-Linux-Setup.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
