@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
         self.toolbar.pen.connect(self.canvas.set_tool_pen)
         self.toolbar.eraser.connect(self.canvas.set_tool_eraser)
         self.toolbar.save.connect(self.canvas.save)
+        self.toolbar.join.connect(self.canvas.set_tool_join)
 
         self.bottom_bar.nextImage.connect(self.next_image)
         self.bottom_bar.prevImage.connect(self.prev_image)

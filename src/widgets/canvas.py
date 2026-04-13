@@ -24,6 +24,7 @@ class Tool(StrEnum):
     HAND = "hand"
     PEN = "pen"
     ERASER = "eraser"
+    JOIN = "join"
 
 
 class Canvas(QWidget):
@@ -44,6 +45,8 @@ class Canvas(QWidget):
         self.tool: Tool = Tool.HAND
         self.scaled_image_cache = None
         self.cached_zoom = 1.0
+
+        self.join_base_idx = -1
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
@@ -69,7 +72,8 @@ class Canvas(QWidget):
         else:
             self.objects = []
 
-        self.current_points = []
+        self._reset_interaction_state()
+
         self.fit_to_window()
         self.update()
 
@@ -170,7 +174,11 @@ class Canvas(QWidget):
         )
 
         for i, obj in enumerate(self.objects):
-            base_color = COLORS[i % len(COLORS)]
+            if self.tool == Tool.JOIN and i == self.join_base_idx:
+                base_color = QColor(255, 255, 255)
+            else:
+                base_color = COLORS[i % len(COLORS)]
+
             painter.setPen(QPen(base_color, 2, Qt.PenStyle.SolidLine))
             fill_color = QColor(base_color)
             fill_color.setAlpha(100)
@@ -274,6 +282,119 @@ class Canvas(QWidget):
                     ]
                     self.objects_updated.emit()
                     self.update()
+                case Tool.JOIN:
+                    click_pos = self.image_coords(event.pos())
+                    clicked_idx = -1
+
+                    for i, obj in enumerate(self.objects):
+                        if self._polygon_contains(obj, click_pos):
+                            clicked_idx = i
+                            break
+
+                    if clicked_idx == -1:
+                        self.join_base_idx = -1
+                    else:
+                        if self.join_base_idx == -1:
+                            self.join_base_idx = clicked_idx
+                        elif self.join_base_idx != clicked_idx:
+                            base_obj = self.objects[self.join_base_idx]
+                            clicked_obj = self.objects[clicked_idx]
+
+                            mask = np.zeros(
+                                (self.image.height(), self.image.width()),
+                                dtype=np.uint8,
+                            )
+
+                            for obj in [base_obj, clicked_obj]:
+                                rows = [
+                                    max(0, min(self.image.height() - 1, p.y()))
+                                    for p in obj
+                                ]
+                                cols = [
+                                    max(0, min(self.image.width() - 1, p.x()))
+                                    for p in obj
+                                ]
+                                rr, cc = draw_polygon(rows, cols, mask.shape)
+                                mask[rr, cc] = 1
+
+                            min_dist = float("inf")
+                            best_p1, best_p2 = None, None
+                            for p1 in base_obj:
+                                for p2 in clicked_obj:
+                                    dist = math.hypot(p1.x() - p2.x(), p1.y() - p2.y())
+                                    if dist < min_dist:
+                                        min_dist = dist
+                                        best_p1 = p1
+                                        best_p2 = p2
+
+                            if best_p1 and best_p2:
+                                dx = best_p2.x() - best_p1.x()
+                                dy = best_p2.y() - best_p1.y()
+                                length = math.hypot(dx, dy)
+                                if length > 0:
+                                    nx = -dy / length
+                                    ny = dx / length
+                                    thickness = 4.0
+
+                                    bridge_rows = [
+                                        best_p1.y() + ny * thickness,
+                                        best_p2.y() + ny * thickness,
+                                        best_p2.y() - ny * thickness,
+                                        best_p1.y() - ny * thickness,
+                                    ]
+                                    bridge_cols = [
+                                        best_p1.x() + nx * thickness,
+                                        best_p2.x() + nx * thickness,
+                                        best_p2.x() - nx * thickness,
+                                        best_p1.x() - nx * thickness,
+                                    ]
+
+                                    bridge_rows = [
+                                        max(0, min(self.image.height() - 1, r))
+                                        for r in bridge_rows
+                                    ]
+                                    bridge_cols = [
+                                        max(0, min(self.image.width() - 1, c))
+                                        for c in bridge_cols
+                                    ]
+                                    rr, cc = draw_polygon(
+                                        bridge_rows, bridge_cols, mask.shape
+                                    )
+                                    mask[rr, cc] = 1
+
+                            contours = find_contours(mask, 0.5)
+                            if contours:
+                                from scipy.interpolate import splev, splprep
+
+                                contour = max(contours, key=len)
+                                y, x = contour[:, 0], contour[:, 1]  # ty:ignore[not-subscriptable]
+
+                                if len(x) > 4:
+                                    if not np.allclose([x[0], y[0]], [x[-1], y[-1]]):
+                                        x = np.append(x, x[0])
+                                        y = np.append(y, y[0])
+                                    try:
+                                        tck, u = splprep([x, y], s=3.0, per=True)
+                                        u_new = np.linspace(u.min(), u.max(), len(x))
+                                        x_new, y_new = splev(u_new, tck)
+                                        new_obj = [
+                                            QPointF(nx, ny)
+                                            for nx, ny in zip(x_new, y_new)
+                                        ]
+                                    except Exception:
+                                        new_obj = [
+                                            QPointF(nx, ny) for nx, ny in zip(x, y)
+                                        ]
+                                else:
+                                    new_obj = [QPointF(nx, ny) for nx, ny in zip(x, y)]
+
+                                self.objects[self.join_base_idx] = new_obj
+                                self.objects.pop(clicked_idx)
+
+                                if clicked_idx < self.join_base_idx:
+                                    self.join_base_idx -= 1
+
+                                self.objects_updated.emit()
 
     def mouseMoveEvent(self, event):
         if not self.image:
@@ -326,14 +447,27 @@ class Canvas(QWidget):
         if self.image:
             self.fit_to_window()
 
+    def _reset_interaction_state(self):
+        self.join_base_idx = -1
+        self.current_points = []
+        self.drawing = False
+
+    def _change_tool(self, new_tool: Tool):
+        self.tool = new_tool
+        self._reset_interaction_state()
+        self.update()
+
     def set_tool_hand(self):
-        self.tool = Tool.HAND
+        self._change_tool(Tool.HAND)
 
     def set_tool_pen(self):
-        self.tool = Tool.PEN
+        self._change_tool(Tool.PEN)
 
     def set_tool_eraser(self):
-        self.tool = Tool.ERASER
+        self._change_tool(Tool.ERASER)
+
+    def set_tool_join(self):
+        self._change_tool(Tool.JOIN)
 
     def save(self):
         if not (self.image_path and self.image) or not self.objects:

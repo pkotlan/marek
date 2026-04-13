@@ -17,6 +17,7 @@ class ToolBar(QWidget):
     hand = Signal()
     pen = Signal()
     eraser = Signal()
+    join = Signal()
     save = Signal()
 
     def __init__(self, parent=None):
@@ -28,26 +29,35 @@ class ToolBar(QWidget):
         toolsLayout.setContentsMargins(3, 3, 3, 3)
         toolsLayout.setSpacing(2)
 
-        # self.handButton = QPushButton("✋")
         self.handButton = QPushButton()
         self.handButton.setIcon(QIcon(str(get_asset_path("icons/move.png"))))
         self.handButton.setIconSize(QSize(40, 40))
-        # self.penButton = QPushButton("✏️")
+
         self.penButton = QPushButton()
         self.penButton.setIcon(QIcon(str(get_asset_path("icons/marker.png"))))
         self.penButton.setIconSize(QSize(40, 40))
-        # self.eraseButton = QPushButton("🧹")
+
         self.eraseButton = QPushButton()
         self.eraseButton.setIcon(QIcon(str(get_asset_path("icons/clean.png"))))
         self.eraseButton.setIconSize(QSize(40, 40))
-        # self.saveButton = QPushButton("💾")
+
+        self.joinButton = QPushButton()
+        self.joinButton.setIcon(QIcon(str(get_asset_path("icons/join.png"))))
+        self.joinButton.setIconSize(QSize(40, 40))
+
         self.saveButton = QPushButton()
         self.saveButton.setIcon(QIcon(str(get_asset_path("icons/save.png"))))
         self.saveButton.setIconSize(QSize(40, 40))
 
         font = QFont()
         font.setPointSize(20)
-        for btn in [self.handButton, self.penButton, self.eraseButton, self.saveButton]:
+        for btn in [
+            self.handButton,
+            self.penButton,
+            self.eraseButton,
+            self.joinButton,
+            self.saveButton,
+        ]:
             btn.setMinimumWidth(70)
             btn.setMinimumHeight(70)
             btn.setMaximumWidth(70)
@@ -57,11 +67,13 @@ class ToolBar(QWidget):
         self.handButton.clicked.connect(self._on_hand_clicked)
         self.penButton.clicked.connect(self._on_pen_clicked)
         self.eraseButton.clicked.connect(self._on_eraser_clicked)
+        self.joinButton.clicked.connect(self._on_join_clicked)
         self.saveButton.clicked.connect(self._on_save_clicked)
 
         toolsLayout.addWidget(self.handButton)
         toolsLayout.addWidget(self.penButton)
         toolsLayout.addWidget(self.eraseButton)
+        toolsLayout.addWidget(self.joinButton)
         toolsLayout.addWidget(self.saveButton)
 
         self._highlight_style = "background-color: #4CAF50; font-weight: bold;"
@@ -93,6 +105,10 @@ class ToolBar(QWidget):
     def _on_eraser_clicked(self):
         self._set_button_highlight(self.eraseButton)
         self.eraser.emit()
+
+    def _on_join_clicked(self):
+        self._set_button_highlight(self.joinButton)
+        self.join.emit()
 
     def _on_save_clicked(self):
         self.save.emit()
