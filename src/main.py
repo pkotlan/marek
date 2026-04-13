@@ -320,10 +320,6 @@ class MainWindow(QMainWindow):
 
 app = QApplication()
 
-# stylesheet_path = Path(__file__).parent.parent / "assets" / "styles.qss"
-# with open(stylesheet_path, "r") as f:
-#     app.setStyleSheet(f.read())
-
 window = MainWindow()
 window.show()
 
