@@ -45,6 +45,8 @@ class MainWindow(QMainWindow):
         self.bottom_bar = BottomBar(self.canvas)
 
         self.bottom_bar.open_image_clicked.connect(self.open_dataset)
+        self.bottom_bar.validate_clicked.connect(self.validate_dataset)
+        self.bottom_bar.export_clicked.connect(self.export_labels)
         self.toolbar.hand.connect(self.canvas.set_tool_hand)
         self.toolbar.pen.connect(self.canvas.set_tool_pen)
         self.toolbar.eraser.connect(self.canvas.set_tool_eraser)
@@ -220,6 +222,99 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(
                 self, "Save Error", f"Failed to overwrite .npz file:\n{e}"
+            )
+
+    def validate_dataset(self):
+        if not self.zip_path or not self.npz_path:
+            QMessageBox.warning(self, "No Dataset", "Please open a dataset first.")
+            return
+
+        zip_p = Path(self.zip_path)
+        npz_p = Path(self.npz_path)
+
+        if zip_p.stem.endswith("_validated"):
+            QMessageBox.information(
+                self,
+                "Already Validated",
+                "This dataset is already marked as validated.",
+            )
+            return
+
+        self.save_to_npz()
+
+        new_zip_name = f"{zip_p.stem}_validated{zip_p.suffix}"
+        new_npz_name = f"{npz_p.stem}_validated{npz_p.suffix}"
+
+        new_zip_path = zip_p.with_name(new_zip_name)
+        new_npz_path = npz_p.with_name(new_npz_name)
+
+        if new_zip_path.exists() or new_npz_path.exists():
+            QMessageBox.critical(
+                self,
+                "Error",
+                "Validated files already exist in this directory. Cannot rename.",
+            )
+            return
+
+        try:
+            zip_p.rename(new_zip_path)
+            npz_p.rename(new_npz_path)
+
+            self.zip_path = str(new_zip_path)
+            self.npz_path = str(new_npz_path)
+
+            QMessageBox.information(self, "Success", "Dataset marked as validated!")
+
+            self.setWindowTitle(f"MAReK - {new_zip_path.name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to rename files:\n{e}")
+
+    def export_labels(self):
+        if not self.zip_path:
+            QMessageBox.warning(
+                self,
+                "No Dataset",
+                "Please open a dataset first to establish the working directory.",
+            )
+            return
+
+        self.save_to_npz()
+
+        current_dir = Path(self.zip_path).parent
+
+        npz_files = list(current_dir.glob("*_validated.npz"))
+
+        if not npz_files:
+            QMessageBox.warning(
+                self,
+                "No Validated Labels",
+                "No validated .npz files found in the current directory to export.",
+            )
+            return
+
+        export_dir = QFileDialog.getExistingDirectory(
+            self, "Select Export Directory", str(current_dir)
+        )
+
+        if not export_dir:
+            return
+
+        dir_name = current_dir.name
+        export_zip_path = Path(export_dir) / f"{dir_name}_validated_labels.zip"
+
+        try:
+            with zipfile.ZipFile(export_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for npz_file in npz_files:
+                    zf.write(npz_file, arcname=npz_file.name)
+
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                f"Exported {len(npz_files)} validated label files to:\n{export_zip_path}",
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Export Error", f"Failed to create export zip:\n{e}"
             )
 
 

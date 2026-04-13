@@ -10,15 +10,14 @@ from PySide6.QtWidgets import (
 from .utils import get_asset_path
 
 
-
-
-
 class BottomBar(QWidget):
     """Floating bottom bar with image navigation and counter."""
 
     open_image_clicked = Signal()
     nextImage = Signal()
     prevImage = Signal()
+    validate_clicked = Signal()
+    export_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,15 +26,11 @@ class BottomBar(QWidget):
         layout.setContentsMargins(3, 3, 3, 3)
         layout.setSpacing(5)
 
-        # prevButton = QPushButton("⬅️")
         prevButton = QPushButton()
         prevButton.setIcon(QIcon(str(get_asset_path("icons/arrow-left.png"))))
         prevButton.setIconSize(QSize(40, 40))
-
-        prevButton.setMinimumWidth(60)
-        prevButton.setMinimumHeight(45)
-        prevButton.setMaximumWidth(60)
-        prevButton.setMaximumHeight(45)
+        prevButton.setMinimumSize(60, 45)
+        prevButton.setMaximumSize(60, 45)
         prevButton.clicked.connect(self.prevImage.emit)
         layout.addWidget(prevButton)
 
@@ -49,29 +44,41 @@ class BottomBar(QWidget):
 
         layout.addSpacing(10)
 
-        # openButton = QPushButton("📁")
         openButton = QPushButton()
         openButton.setIcon(QIcon(str(get_asset_path("icons/add-image.png"))))
         openButton.setIconSize(QSize(40, 40))
-
-        openButton.setMinimumWidth(60)
-        openButton.setMinimumHeight(45)
-        openButton.setMaximumWidth(60)
-        openButton.setMaximumHeight(45)
+        openButton.setMinimumSize(60, 45)
+        openButton.setMaximumSize(60, 45)
         openButton.clicked.connect(self.open_image_clicked.emit)
         layout.addWidget(openButton)
 
         layout.addSpacing(10)
 
-        # nextButton = QPushButton("➡️")
+        self.validateButton = QPushButton()
+        self.validateButton.setIcon(QIcon(str(get_asset_path("icons/check.png"))))
+        self.validateButton.setIconSize(QSize(40, 40))
+        self.validateButton.setMinimumSize(60, 45)
+        self.validateButton.setMaximumSize(60, 45)
+        self.validateButton.clicked.connect(self.validate_clicked.emit)
+        layout.addWidget(self.validateButton)
+
+        layout.addSpacing(10)
+
+        self.exportButton = QPushButton()
+        self.exportButton.setIcon(QIcon(str(get_asset_path("icons/export.png"))))
+        self.exportButton.setIconSize(QSize(40, 40))
+        self.exportButton.setMinimumSize(60, 45)
+        self.exportButton.setMaximumSize(60, 45)
+        self.exportButton.clicked.connect(self.export_clicked.emit)
+        layout.addWidget(self.exportButton)
+
+        layout.addSpacing(10)
+
         nextButton = QPushButton()
         nextButton.setIcon(QIcon(str(get_asset_path("icons/arrow-right.png"))))
         nextButton.setIconSize(QSize(40, 40))
-
-        nextButton.setMinimumWidth(60)
-        nextButton.setMinimumHeight(45)
-        nextButton.setMaximumWidth(60)
-        nextButton.setMaximumHeight(45)
+        nextButton.setMinimumSize(60, 45)
+        nextButton.setMaximumSize(60, 45)
         nextButton.clicked.connect(self.nextImage.emit)
         layout.addWidget(nextButton)
 
