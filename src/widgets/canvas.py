@@ -469,9 +469,9 @@ class Canvas(QWidget):
     def set_tool_join(self):
         self._change_tool(Tool.JOIN)
 
-    def save(self):
-        if not (self.image_path and self.image) or not self.objects:
-            return
+    def get_current_mask(self) -> np.ndarray | None:
+        if not self.image:
+            return None
 
         labels = np.zeros((self.image.height(), self.image.width()), dtype=np.uint16)
 
@@ -482,6 +482,4 @@ class Canvas(QWidget):
                 rr, cc = draw_polygon(rows, cols, labels.shape)
                 labels[rr, cc] = label_num
 
-        save_path = Path(Path(self.image_path).name).with_suffix(".npy")
-        np.save(save_path, labels)
-        print(f"Mask saved pure to {save_path}")
+        return labels

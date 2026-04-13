@@ -48,7 +48,7 @@ class MainWindow(QMainWindow):
         self.toolbar.hand.connect(self.canvas.set_tool_hand)
         self.toolbar.pen.connect(self.canvas.set_tool_pen)
         self.toolbar.eraser.connect(self.canvas.set_tool_eraser)
-        self.toolbar.save.connect(self.canvas.save)
+        self.toolbar.save.connect(self.save_to_npz)
         self.toolbar.join.connect(self.canvas.set_tool_join)
 
         self.bottom_bar.nextImage.connect(self.next_image)
@@ -131,6 +131,9 @@ class MainWindow(QMainWindow):
 
     def _load_current_image(self):
         """Extracts current image from zip, finds its labels, and loads them into canvas."""
+        if not self.image_names:
+            return
+
         img_name = self.image_names[self.currImgIdx]
 
         with zipfile.ZipFile(self.zip_path, "r") as zf:
@@ -142,7 +145,9 @@ class MainWindow(QMainWindow):
         base_name = Path(img_name).stem
 
         labels_array = None
-        if base_name in self.npz_data:
+        if img_name in self.npz_data:
+            labels_array = self.npz_data[img_name]
+        elif base_name in self.npz_data:
             labels_array = self.npz_data[base_name]
         elif f"{base_name}.npy" in self.npz_data:
             labels_array = self.npz_data[f"{base_name}.npy"]
@@ -184,6 +189,38 @@ class MainWindow(QMainWindow):
     def moveEvent(self, event):
         super().moveEvent(event)
         self._position_floating_panels()
+
+    def save_to_npz(self):
+        if not self.image_names or not self.npz_path:
+            return
+
+        self.update_objects_map()
+
+        updated_data = dict(self.npz_data)
+
+        temp_canvas = Canvas()
+        if self.canvas.image:
+            temp_canvas.image = self.canvas.image
+
+        for img_path, objects_list in self.objects_map.items():
+            temp_canvas.objects = objects_list
+            mask = temp_canvas.get_current_mask()
+
+            if mask is not None:
+                updated_data[img_path] = mask
+
+        try:
+            np.savez_compressed(self.npz_path, **updated_data)
+            self.npz_data = updated_data
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Successfully updated labels in\n{Path(self.npz_path).name}",
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Save Error", f"Failed to overwrite .npz file:\n{e}"
+            )
 
 
 app = QApplication()

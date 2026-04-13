@@ -112,4 +112,3 @@ class ToolBar(QWidget):
 
     def _on_save_clicked(self):
         self.save.emit()
-        QMessageBox.information(self, "Success", "Saved successfully!")
