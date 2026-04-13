@@ -48,41 +48,41 @@ class Canvas(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
 
-    def load_image(self, file_path, objects: list[list[QPointF]] | None = None):
-        self.image_path = file_path
-        self.image = QImage(file_path)
+    def load_dataset_item(
+        self,
+        image_internal_path: str,
+        qimage: QImage,
+        labels_array: np.ndarray | None,
+        objects: list[list[QPointF]] | None = None,
+    ):
+        self.image_path = image_internal_path
+        self.image = qimage
         self.zoom = 1.0
         self.offset = QPointF(0, 0)
         self.scaled_image_cache = self.image.copy()
         self.cached_zoom = self.zoom
 
-        if objects is None:
-            objects = self._load_objects_from_npy(file_path)
+        if objects is not None:
+            self.objects = objects
+        elif labels_array is not None:
+            self.objects = self._extract_objects_from_labels(labels_array)
+        else:
+            self.objects = []
 
-        self.objects = objects if objects else []
         self.current_points = []
         self.fit_to_window()
         self.update()
 
-    def _load_objects_from_npy(self, file_path: str) -> list[list[QPointF]] | None:
-        from pathlib import Path
-
-        import numpy as np
+    def _extract_objects_from_labels(self, labels) -> list[list[QPointF]]:
         from scipy.interpolate import splev, splprep
 
-        npy_path = Path(file_path).with_suffix(".npy")
-        if not npy_path.exists():
-            return None
+        if isinstance(labels, np.ndarray) and labels.dtype == object:
+            labels = labels.item()
+        if isinstance(labels, dict):
+            labels = labels.get("labels", labels)
 
+        objects = []
         try:
-            labels = np.load(npy_path, allow_pickle=True)
-            if isinstance(labels, np.ndarray) and labels.dtype == object:
-                labels = labels.item()
-            if isinstance(labels, dict):
-                labels = labels.get("labels", labels)
-
-            objects = []
-
             for label_num in np.unique(labels):
                 if label_num == 0:
                     continue
@@ -92,7 +92,6 @@ class Canvas(QWidget):
 
                 if contours:
                     contour = max(contours, key=len)
-
                     y, x = contour[:, 0], contour[:, 1]  # ty:ignore[not-subscriptable]
 
                     if len(x) > 4:
@@ -101,7 +100,6 @@ class Canvas(QWidget):
                             y = np.append(y, y[0])
 
                         tck, u = splprep([x, y], s=3.0, per=True)
-
                         u_new = np.linspace(u.min(), u.max(), len(x))
                         x_new, y_new = splev(u_new, tck)
 
@@ -111,11 +109,10 @@ class Canvas(QWidget):
 
                     if len(qpoints) >= 3:
                         objects.append(qpoints)
-
-            return objects if objects else None
         except Exception as e:
-            print(f"Error loading objects from {npy_path}: {e}")
-            return None
+            print(f"Error processing mask data: {e}")
+
+        return objects
 
     def fit_to_window(self):
         if not self.image:
@@ -144,7 +141,7 @@ class Canvas(QWidget):
 
         self.offset = QPointF(x, y)
 
-    def paintEvent(self, event):
+    def paintEvent(self, _):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
@@ -351,7 +348,6 @@ class Canvas(QWidget):
                 rr, cc = draw_polygon(rows, cols, labels.shape)
                 labels[rr, cc] = label_num
 
-        save_path = Path(self.image_path).with_suffix(".npy")
-
+        save_path = Path(Path(self.image_path).name).with_suffix(".npy")
         np.save(save_path, labels)
         print(f"Mask saved pure to {save_path}")
