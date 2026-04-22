@@ -1,27 +1,15 @@
 # MAReK
 
+Simple GUI imagge annotation.
 
-## Development
+## Run app
 
-Run app:
+```bash
+just
+```
+
+or
+
 ```bash
 uv run python src/main.py
 ```
-
-Build:
-```bash
-uv run pyside6-deploy --config-file pysidedeploy.spec
-```
-
-```bash
-uv run pyinstaller --onedir --windowed --name MAReK src/main.py
-```
-
-```bash
-makensis installer.nsi
-```
-
-## Icons
-
-<https://icons8.com/> 
-

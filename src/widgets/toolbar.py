@@ -1,7 +1,6 @@
 from PySide6.QtCore import QSize, Signal
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (
-    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,

@@ -25,9 +25,9 @@ site_description = ""
 # The site_author attribute. This is used in the HTML head element.
 #
 # Read more: https://zensical.org/docs/setup/basics/#site_author
-site_author = "yoptohlejepeta"
-repo_url = "https://github.com/yoptohlejepeta/marek"
-repo_name = "yoptohlejepeta/marek"
+site_author = "pkotlan"
+repo_url = "https://github.com/pkotlan/marek"
+repo_name = "pkotlan/marek"
 
 # The site_url is the canonical URL for your site. When building online
 # documentation you should set this.
@@ -113,7 +113,7 @@ repo_name = "yoptohlejepeta/marek"
 # Read more:
 # - https://zensical.org/docs/setup/language/
 #
-language = "cs"
+language = "en"
 
 # Zensical provides a number of feature toggles that change the behavior
 # of the documentation site.
@@ -264,8 +264,6 @@ features = [
 # ----------------------------------------------------------------------------
 # Palette toggle for automatic mode
 
-font.code="Martian Mono"
-
 [[project.theme.palette]]
 media = "(prefers-color-scheme)"
 toggle.icon = "lucide/sun-moon"
@@ -297,9 +295,8 @@ primary = "green"
 # of suitably licensed fonts. There are options for a normal text font and for
 # a monospaced font used in code blocks.
 # ----------------------------------------------------------------------------
-#[project.theme.font]
-# text = "Poppins"
-# code = "Martian Mono"
+[project.theme.font]
+code = "Cascadia Code"
 
 # ----------------------------------------------------------------------------
 # You can configure your own logo to be shown in the header using the "logo"

@@ -1,6 +1,5 @@
 import math
 from enum import StrEnum
-from pathlib import Path
 
 import numpy as np
 from PySide6.QtCore import QPoint, QPointF, Qt, Signal

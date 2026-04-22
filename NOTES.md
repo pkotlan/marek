@@ -1,4 +1,4 @@
+# Resources
 
 icons resources:
-- https://icons8.com/icons/set/svg-image-plus--style-color
-- fontawesome
+- [icons8](https://icons8.com/)
