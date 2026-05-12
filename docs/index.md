@@ -1,18 +1,26 @@
 ---
-icon: lucide/rocket
-hide:
-    - navigation
-    - toc
+# https://vitepress.dev/reference/default-theme-home-page
+layout: home
+
+hero:
+  name: "MAReK"
+  text: "Simple GUI for image annotation"
+  <!-- tagline: My great project tagline -->
+  actions:
+    - theme: brand
+      text: Installation
+      link: /installation
+    - theme: alt
+      text: User guide
+      link: /userguide
+
 ---
 
-# Installation
-
-## Windows
-
-[Download :fontawesome-brands-windows:](https://github.com/yoptohlejepeta/marek/releases/latest/download/MAReK-Windows-Setup.exe){ .md-button .md-button--primary}
-
-## Linux
-
-
-[Download :fontawesome-brands-linux:](#){ .md-button .md-button--primary}
+<!-- features: -->
+<!--   - title: Feature A -->
+<!--     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit -->
+<!--   - title: Feature B -->
+<!--     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit -->
+<!--   - title: Feature C -->
+<!--     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit -->
 
