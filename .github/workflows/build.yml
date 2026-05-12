@@ -67,9 +67,7 @@ jobs:
         run: uv run pyinstaller --onedir --windowed --name MAReK --add-data "assets;assets" src/main.py
 
       - name: Install NSIS
-        uses: repolevedavaj/install-nsis@v1.1.0
-        with:
-          nsis-version: 3.11
+        run: choco install nsis
 
       - name: Create Windows Installer
         run: makensis installer.nsi
