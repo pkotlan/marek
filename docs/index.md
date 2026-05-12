@@ -11,8 +11,8 @@ hero:
       text: Installation
       link: /installation
     - theme: alt
-      text: User guide
-      link: /userguide
+      text: Usage
+      link: /usage
 
 ---
 
