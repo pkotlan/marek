@@ -223,4 +223,5 @@ node_modules/
 .direnv
 *.bin
 *.npy
+data/*
 

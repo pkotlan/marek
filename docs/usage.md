@@ -8,7 +8,7 @@
 
 ## 1. File manipulation
 
-- ⬅️/➡️ — switching images
+- ⬅️/➡️ - switching images
 - 📁 – open new images + annotations
     - only .zip folders are visible
     - annotations (.npz) have to be in same folder as images
