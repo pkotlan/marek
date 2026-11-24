@@ -47,14 +47,16 @@ class MainWindow(QMainWindow):
         self.bottom_bar.open_image_clicked.connect(self.open_dataset)
         self.bottom_bar.validate_clicked.connect(self.validate_dataset)
         self.bottom_bar.export_clicked.connect(self.export_labels)
+        self.bottom_bar.nextImage.connect(self.next_image)
+        self.bottom_bar.prevImage.connect(self.prev_image)
+        self.bottom_bar.toggle_labels.connect(self.canvas.toggle_labels)
+
         self.toolbar.hand.connect(self.canvas.set_tool_hand)
         self.toolbar.pen.connect(self.canvas.set_tool_pen)
         self.toolbar.eraser.connect(self.canvas.set_tool_eraser)
         self.toolbar.save.connect(self.save_to_npz)
         self.toolbar.join.connect(self.canvas.set_tool_join)
 
-        self.bottom_bar.nextImage.connect(self.next_image)
-        self.bottom_bar.prevImage.connect(self.prev_image)
         self.canvas.objects_updated.connect(self.update_objects_map)
 
         self.toolbar.show()

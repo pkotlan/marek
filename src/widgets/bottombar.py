@@ -1,13 +1,23 @@
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal, QEvent, QPoint
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QWidget,
+    QWidget, QToolTip,
 )
 
 from .utils import get_asset_path
+
+
+class BottomBarButton(QPushButton):
+    def event(self, event):
+        if event.type() == QEvent.Type.ToolTip and self.toolTip():
+            position = self.mapToGlobal(QPoint(0, -40))
+            QToolTip.showText(position, self.toolTip(), self, self.rect())
+            return True
+
+        return super().event(event)
 
 
 class BottomBar(QWidget):
@@ -18,6 +28,7 @@ class BottomBar(QWidget):
     prevImage = Signal()
     validate_clicked = Signal()
     export_clicked = Signal()
+    toggle_labels = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -41,6 +52,24 @@ class BottomBar(QWidget):
         self.counterLabel.setMinimumWidth(140)
         self.counterLabel.setAutoFillBackground(True)
         layout.addWidget(self.counterLabel)
+
+        layout.addSpacing(10)
+
+        labelsToggle = BottomBarButton("Labels")
+        labelsToggle.setToolTip("Show or hide annotation labels")
+        labelsToggle.setAccessibleName("Show or hide annotation labels")
+        labelsToggle.setCheckable(True)
+        labelsToggle.setChecked(True)
+        labelsToggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        labelsToggle.setStyleSheet("""
+            QPushButton:checked {
+                background-color: #4CAF50;
+            }
+        """)
+        labelsToggle.setFixedHeight(45)
+        labelsToggle.setMinimumWidth(90)
+        labelsToggle.toggled.connect(self.toggle_labels.emit)
+        layout.addWidget(labelsToggle)
 
         layout.addSpacing(10)
 

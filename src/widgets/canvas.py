@@ -36,6 +36,7 @@ class Canvas(QWidget):
         self.zoom = 1.0
         self.offset = QPointF(0, 0)
         self.drawing = False
+        self.drawLabels = True
 
         self.current_points: list[QPointF] = []
         self.objects: list[list[QPointF]] = []
@@ -44,6 +45,7 @@ class Canvas(QWidget):
         self.tool: Tool = Tool.HAND
         self.scaled_image_cache = None
         self.cached_zoom = 1.0
+        self.show_labels = True
 
         self.join_base_idx = -1
 
@@ -172,17 +174,18 @@ class Canvas(QWidget):
             int(self.offset.x()), int(self.offset.y()), self.scaled_image_cache
         )
 
-        for i, obj in enumerate(self.objects):
-            if self.tool == Tool.JOIN and i == self.join_base_idx:
-                base_color = QColor(255, 255, 255)
-            else:
-                base_color = COLORS[i % len(COLORS)]
+        if self.drawLabels:
+            for i, obj in enumerate(self.objects):
+                if self.tool == Tool.JOIN and i == self.join_base_idx:
+                    base_color = QColor(255, 255, 255)
+                else:
+                    base_color = COLORS[i % len(COLORS)]
 
-            painter.setPen(QPen(base_color, 2, Qt.PenStyle.SolidLine))
-            fill_color = QColor(base_color)
-            fill_color.setAlpha(100)
-            painter.setBrush(QBrush(fill_color))
-            self._draw_polygon(painter, obj, closed=True)
+                painter.setPen(QPen(base_color, 2, Qt.PenStyle.SolidLine))
+                fill_color = QColor(base_color)
+                fill_color.setAlpha(100)
+                painter.setBrush(QBrush(fill_color))
+                self._draw_polygon(painter, obj, closed=True)
 
         if self.current_points:
             color = COLORS[len(self.objects) % len(COLORS)]
@@ -455,6 +458,13 @@ class Canvas(QWidget):
         self.tool = new_tool
         self._reset_interaction_state()
         self.update()
+
+    def _toggle_labels(self):
+        self.drawLabels = not self.drawLabels
+        self.update()
+
+    def toggle_labels(self):
+        self._toggle_labels()
 
     def set_tool_hand(self):
         self._change_tool(Tool.HAND)
