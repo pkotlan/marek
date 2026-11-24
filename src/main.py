@@ -1,3 +1,4 @@
+from PySide6.QtCore import QTimer
 import logging
 import sys
 import zipfile
@@ -68,6 +69,8 @@ class MainWindow(QMainWindow):
         self.bottom_bar.show()
 
         self._position_floating_panels()
+
+        QTimer.singleShot(0, self.open_dataset)
 
     def open_dataset(self):
         zip_file_path, _ = QFileDialog.getOpenFileName(

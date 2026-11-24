@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 from .utils import get_asset_path
 
 
