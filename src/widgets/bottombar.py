@@ -1,10 +1,11 @@
-from PySide6.QtCore import QSize, Qt, Signal, QEvent, QPoint
+from PySide6.QtCore import QEvent, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QWidget, QToolTip,
+    QToolTip,
+    QWidget,
 )
 
 from .utils import get_asset_path
@@ -29,6 +30,7 @@ class BottomBar(QWidget):
     validate_clicked = Signal()
     export_clicked = Signal()
     toggle_labels = Signal(bool)
+    time_context_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -73,6 +75,14 @@ class BottomBar(QWidget):
 
         layout.addSpacing(10)
 
+        self.timeContextButton = BottomBarButton("Time context")
+        self.timeContextButton.setFixedHeight(45)
+        self.timeContextButton.setToolTip("Preview earlier and later frames")
+        self.timeContextButton.setEnabled(False)
+        self.timeContextButton.clicked.connect(self.time_context_clicked)
+        layout.addWidget(self.timeContextButton)
+        layout.addSpacing(10)
+
         openButton = QPushButton()
         openButton.setIcon(QIcon(str(get_asset_path("icons/add-image.png"))))
         openButton.setIconSize(QSize(40, 40))
@@ -112,8 +122,7 @@ class BottomBar(QWidget):
         layout.addWidget(nextButton)
 
         self.setLayout(layout)
-        self.setMinimumHeight(50)
-        self.setMaximumHeight(50)
+        self.setFixedHeight(55)
         self.adjustSize()
 
     def update_counter(self, current: int, total: int):

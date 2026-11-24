@@ -12,8 +12,10 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from dataset import index_images
 from widgets.bottombar import BottomBar
 from widgets.canvas import Canvas
+from widgets.timecontext import TimeContextPreview
 from widgets.toolbar import ToolBar
 
 
@@ -37,6 +39,8 @@ class MainWindow(QMainWindow):
         self.npz_data: dict = {}
         self.currImgIdx: int = 0
         self.objects_map: dict[str, list] = {}
+        self.context_frames: dict[str, dict[int, str]] = {}
+        self.context_preview = TimeContextPreview(self)
 
         self.canvas = Canvas()
         self.setCentralWidget(self.canvas)
@@ -44,6 +48,7 @@ class MainWindow(QMainWindow):
         self.toolbar = ToolBar(self.canvas)
         self.bottom_bar = BottomBar(self.canvas)
 
+        self.bottom_bar.time_context_clicked.connect(self.open_time_context)
         self.bottom_bar.open_image_clicked.connect(self.open_dataset)
         self.bottom_bar.validate_clicked.connect(self.validate_dataset)
         self.bottom_bar.export_clicked.connect(self.export_labels)
@@ -87,26 +92,23 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.npz_data = dict(np.load(npz_file_path, allow_pickle=True))
+            with np.load(npz_file_path, allow_pickle=True) as labels:
+                npz_data = dict(labels)
         except Exception as e:
             QMessageBox.critical(self, "Load Error", f"Failed to load .npz file:\n{e}")
             return
 
         try:
             with zipfile.ZipFile(zip_file_path, "r") as zf:
-                self.image_names = [
-                    name
-                    for name in zf.namelist()
-                    if name.lower().endswith((".png", ".jpg", ".jpeg", ".bmp"))
-                ]
-                self.image_names.sort()
+                context_frames = index_images(zf.namelist())
+                image_names = list(context_frames)
         except Exception as e:
             QMessageBox.critical(
                 self, "Zip Error", f"Failed to read the .zip file:\n{e}"
             )
             return
 
-        if not self.image_names:
+        if not image_names:
             QMessageBox.warning(
                 self,
                 "Empty Dataset",
@@ -114,6 +116,9 @@ class MainWindow(QMainWindow):
             )
             return
 
+        self.context_frames = context_frames
+        self.image_names = image_names
+        self.npz_data = npz_data
         self.zip_path = zip_file_path
         self.npz_path = str(npz_file_path)
         self.currImgIdx = 0
@@ -160,13 +165,25 @@ class MainWindow(QMainWindow):
 
         self.canvas.load_dataset_item(img_name, qimage, labels_array, objects)
         self.bottom_bar.update_counter(self.currImgIdx, len(self.image_names))
+        frames = self.context_frames[img_name]
+        self.bottom_bar.timeContextButton.setEnabled(len(frames) > 1)
+        if self.context_preview.isVisible():
+            self.context_preview.set_item(self.zip_path, img_name, frames)
+
+    def open_time_context(self):
+        if not self.image_names:
+            return
+        name = self.image_names[self.currImgIdx]
+        self.context_preview.show()
+        self.context_preview.set_item(self.zip_path, name, self.context_frames[name])
+        self.context_preview.raise_()
+        self.context_preview.activateWindow()
 
     def update_objects_map(self):
         if not self.image_names:
             return
         current_name = self.image_names[self.currImgIdx]
-        if self.canvas.objects:
-            self.objects_map[current_name] = self.canvas.objects
+        self.objects_map[current_name] = self.canvas.objects
 
     def _position_floating_panels(self):
         canvas_width = self.canvas.width()
@@ -264,6 +281,7 @@ class MainWindow(QMainWindow):
 
             self.zip_path = str(new_zip_path)
             self.npz_path = str(new_npz_path)
+            self.context_preview.zip_path = self.zip_path
 
             QMessageBox.information(self, "Success", "Dataset marked as validated!")
 
